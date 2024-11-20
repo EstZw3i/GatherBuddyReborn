@@ -150,23 +150,28 @@ namespace GatherBuddy.AutoGather
             // Handle Character Occupied States
             if (!CanAct)
             {
-                if (IsPreparingToCraft)
+                if(GatherBuddy.Config.AutoGatherConfig.EnableArtisanIntegration && Artisan_IPCSubscriber.IsEnabled)
                 {
-                    if(GatherBuddy.Config.AutoGatherConfig.EnableArtisanIntegration && Artisan_IPCSubscriber.IsEnabled && !IsArtisanOperating())
+                    var isArtisanOperating = IsArtisanOperating();
+                    if (IsPreparingToCraft)
                     {
-                        AutoStatus = "Artisan is currently operating...";
+                        if (isArtisanOperating)
+                            AutoStatus = "Artisan is currently operating...";
+                        else
+                        {
+                            CloseRecipeAddon();
+                            return;
+                        }
                     }
+                    else if(IsCrafting && isArtisanOperating)
+                        AutoStatus = "Artisan is currently operating...";
                     else
                     {
-                        CloseRecipeAddon();
+                        AutoStatus = Dalamud.Conditions[ConditionFlag.Gathering] ? AutoStatus = "Gathering..." : "Player is busy...";
+                        return;
                     }
-                } else if (IsCrafting)
-                {
-                    if(GatherBuddy.Config.AutoGatherConfig.EnableArtisanIntegration && Artisan_IPCSubscriber.IsEnabled)
-                    {
-                        AutoStatus = "Artisan is currently operating...";
-                    }
-                } else
+                }
+                else
                 {
                     AutoStatus = Dalamud.Conditions[ConditionFlag.Gathering] ? AutoStatus = "Gathering..." : "Player is busy...";
                     return;
@@ -281,6 +286,8 @@ namespace GatherBuddy.AutoGather
 
                     if (GatherBuddy.Config.AutoGatherConfig.GoHomeWhenIdle)
                         GoHome();
+                    else
+                        AutoGatherStatus = AutoGatherState.Idle;
 
                     if (GatherBuddy.Config.AutoGatherConfig.EnableArtisanIntegration && Artisan_IPCSubscriber.IsEnabled && IsArtisanOperating())
                         AutoStatus = "Artisan is currently operating...";
