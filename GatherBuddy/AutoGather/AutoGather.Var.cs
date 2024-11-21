@@ -61,32 +61,11 @@ namespace GatherBuddy.AutoGather
         public bool ShouldUseFlag
             => !GatherBuddy.Config.AutoGatherConfig.DisableFlagPathing;
 
-        public unsafe Vector3? MapFlagPosition
-        {
-            get
-            {
-                var map = FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentMap.Instance();
-                if (map == null || map->IsFlagMarkerSet == 0)
-                    return null;
-                if (map->CurrentTerritoryId != Dalamud.ClientState.TerritoryType)
-                    return null;
-
-                var marker             = map->FlagMapMarker;
-                var mapPosition        = new Vector2(marker.XFloat, marker.YFloat);
-                var uncorrectedVector3 = new Vector3(mapPosition.X, 1024, mapPosition.Y);
-                var correctedVector3   = uncorrectedVector3.CorrectForMesh(0.5f);
-                if (uncorrectedVector3 == correctedVector3)
-                    return null;
-
-                if (!correctedVector3.SanityCheck())
-                    return null;
-
-                return correctedVector3;
-            }
-        }
-
         public bool ShouldFly(Vector3 destination)
         {
+            if (Dalamud.Conditions[ConditionFlag.InFlight] || Dalamud.Conditions[ConditionFlag.Diving])
+                return true;
+
             if (GatherBuddy.Config.AutoGatherConfig.ForceWalking || Dalamud.ClientState.LocalPlayer == null)
             {
                 return false;
@@ -181,7 +160,7 @@ namespace GatherBuddy.AutoGather
             {
                 res = GatherBuddy.UptimeManager.NextUptime(item, time, [.. VisitedTimedLocations.Keys]);
             }
-            return (item, res.Location, res.Time);
+            return (item, (GatheringNode?)res.Location, res.Time);
         }
 
         private IEnumerable<GatherInfo> OrderActiveItems(IEnumerable<GatherInfo> activeItems)
@@ -307,14 +286,14 @@ namespace GatherBuddy.AutoGather
             => PlayerState.Instance()->Attributes[72];
     }
 
-    public record class GatherInfo(Gatherable Item, ILocation? Location, TimeInterval Time)
+    public record class GatherInfo(Gatherable Item, GatheringNode? Location, TimeInterval Time)
     {
-        public static implicit operator (Gatherable Item, ILocation? Location, TimeInterval Time)(GatherInfo value)
+        public static implicit operator (Gatherable Item, GatheringNode? Location, TimeInterval Time)(GatherInfo value)
         {
             return (value.Item, value.Location, value.Time);
         }
 
-        public static implicit operator GatherInfo((Gatherable Item, ILocation? Location, TimeInterval Time) value)
+        public static implicit operator GatherInfo((Gatherable Item, GatheringNode? Location, TimeInterval Time) value)
         {
             return new GatherInfo(value.Item, value.Location, value.Time);
         }
